@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/kirin-vn/lexer"
 )
 
 // These are our command-line flags.
@@ -37,10 +39,10 @@ func initFlags() {
 }
 
 // Serializes tokens in a readable format.
-func serialize(tokenChannel <-chan Token, out *os.File) {
+func serialize(tokenChannel <-chan lexer.Token, out *os.File) {
 	var (
 		outs  string
-		token Token
+		token lexer.Token
 		open  = true
 		err   error
 	)
@@ -51,10 +53,10 @@ func serialize(tokenChannel <-chan Token, out *os.File) {
 			break
 		}
 
-		if int(token.Name) >= len(nameString) {
+		if int(token.Name) >= len(lexer.NameString) {
 			panic(fmt.Errorf("%d is not a printable token name", token.Name))
 		}
-		outs = nameString[token.Name] + ": " + strings.Join(token.Args, ", ") + "\n"
+		outs = lexer.NameString[token.Name] + ": " + strings.Join(token.Args, ", ") + "\n"
 		_, err = out.WriteString(outs)
 		if err != nil {
 			panic(err)
@@ -68,7 +70,7 @@ func main() {
 		npt          *os.File
 		out          *os.File
 		err          error
-		tokenChannel chan Token
+		tokenChannel chan lexer.Token
 	)
 
 	// Initializes flags; see above:
@@ -95,6 +97,6 @@ func main() {
 	}
 
 	// Tokenizing and serializing:
-	tokenChannel = Tokenize(npt)
+	tokenChannel = lexer.Tokenize(npt)
 	serialize(tokenChannel, out)
 }

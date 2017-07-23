@@ -1,4 +1,4 @@
-package main
+package lexer
 
 // Name is an int representing a token name.
 type name int
@@ -10,4 +10,4 @@ const (
 )
 
 // These are strings used by serialize().
-var nameString = []string{"LINE", "DIALOGUE"}
+var NameString = []string{"LINE", "DIALOGUE"}
