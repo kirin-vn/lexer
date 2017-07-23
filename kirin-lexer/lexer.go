@@ -53,10 +53,10 @@ func serialize(tokenChannel <-chan lexer.Token, out *os.File) {
 			break
 		}
 
-		if int(token.Name) >= len(lexer.NameString) {
+		if token.Name > lexer.NameMax {
 			panic(fmt.Errorf("%d is not a printable token name", token.Name))
 		}
-		outs = lexer.NameString[token.Name] + ": " + strings.Join(token.Args, ", ") + "\n"
+		outs = token.Name.String() + ": " + strings.Join(token.Args, ", ") + "\n"
 		_, err = out.WriteString(outs)
 		if err != nil {
 			panic(err)
