@@ -164,7 +164,7 @@ Defined identifiers which are nonzero and not the empty string evaluate to `[tru
     [True]
     [ NO ]
 
-A `!` character may be placed before to the identifier to negate the boolean's value.
+A `!` character may be placed before the identifier to negate the boolean's value.
 
     [!False]
     [! YES ]
@@ -185,12 +185,12 @@ A list is a sequence of numbers, lists, or identifiers, placed inside of curly b
     {some variable | another variable | +1000 | true }
     { this list | { contains another list | inside } }
 
-Strings cannot be included in lists verbatim, and must first be assigned to a variable.
+Strings cannot be included in lists verbatim; they must first be assigned to a variable.
 
 ###  Commands
 
-A __*command*__ is a span of text which terminates a verse to add an additional effect.
-It is okay for a verse to consist of only a command.
+A __*command*__ is a span of text which terminates a span to add an additional effect.
+It is okay for a span to consist of only a command.
 
 ####  Tags
 
@@ -228,7 +228,7 @@ For example, the following code passes `variable` to the engine, and waits for a
 
 A __*moment*__ is a type of verse which must begin with a period.
 Moments identify a particular location in the script, and can be used to break a page up into sections.
-The contents of the verse (sans–initial period) are the moment's identifier.
+The contents of the verse (sans–initial period) provide the moment's identifier, which must be unique within a page.
 
     .A SIMPLE MOMENT
 
@@ -248,9 +248,17 @@ Moments describe all of the blocks which follow them, until another moment is de
 A __*setting*__ is a verse identifying a setting.
 It begins with a `>`, followed by the setting's identifier, and optionally followed by a parenthetical list of attributes, separated by commas.
 
-    > SETTING (morning, raining)
+    > Setting (morning, raining)
 
-Setting attributes are not inherited from previous setting verses.
+The identifier of a setting can be used to access the setting's name.
+This defaults to the string representation of the identifier, but can be changed in the engine.
+
+    > Basement
+
+        We are currently in the `Basement`. %% defaults to Basement, but can be changed.
+
+If a parenthetical is given, it first removes all attributes from the specified setting before adding those provided.
+Otherwise, the attributes are inherited from the previous time a setting with that identifier was used.
 
 ####  Character
 
@@ -262,9 +270,14 @@ It begins with an `@`, followed by the character's identifier, and optionally fo
 The identifier of a character can be used to access the character's name.
 This defaults to the string representation of the identifier, but can be changed in the engine.
 
-    I really like you, `GIRLFRIEND`! %% defaults to GIRLFRIEND, but can be changed.
+                @GIRLFRIEND
+        What is it?
 
-Character attributes are not inherited from previous character verses.
+                @PLAYER
+        I really like you, `GIRLFRIEND`! %% defaults to GIRLFRIEND, but can be changed.
+
+If a parenthetical is given, it first removes all attributes from the specified character before adding those provided.
+Otherwise, the attributes are inherited from the previous time a character with that identifier was used.
 
 ####  Parenthetical
 
@@ -275,16 +288,16 @@ Inside these parentheses must be a list of values, optionally separated by comma
  -  `+` followed by the name of the attribute to add
  -  `-` followed by the name of the attribute to subtract
  -  `?` followed by the name of an attribute to subtract if present, or add if not (this toggles the attribute)
- -  `=0` to remove all attributes currently specified
- -  `=^` to reset the attributes to those declared at the beginning of the block.
+ -  `:0` to remove all attributes currently specified
+ -  `:^` to reset the attributes to those declared at the beginning of the block.
 
 These values are evaluated from left-to-right, meaning that later values can override previous ones.
-Since `=0` and `=^` will remove/reset any attributes previously specified in the verse, these should always come first.
+Since `:0` and `:^` will remove/reset any attributes previously specified in the verse, these should always come first.
 For example, in the following verse:
 
-    (+happy =0 +sad)
+    (+happy :0 +sad)
 
-…the attribute `happy` is removed by `=0` and only the attribute `sad` is applied.
+…the attribute `happy` is removed by `:0` and only the attribute `sad` is applied.
 
 If `+attr` is specified but `attr` is already present, it is ignored.
 Similarly, if `-attr` is specified but `attr` is not present, it is ignored.
@@ -297,35 +310,35 @@ Choices which begin with `+` are __*sticky choices*__, and can be selected any n
 Choices which begin with `-` are __*fallback choices*__, and can only be selected when no other choices are available.
 These characters should be followed by a span labelling the choice.
 
-    * This is a choice.
-    + This is a sticky choice.
-    - This is a fallback choice.
+        * This is a choice.
+        + This is a sticky choice.
+        - This is a fallback choice.
 
 The initial `*`, `+`, or `-` character may be repeated; this signifies a sub-choice.
 
-    ** This is a choice inside of another choice.
+          ** This is a choice inside of another choice.
 
 Like all spans, choice spans may begin with a series of boolean values, inside of square brackets.
 All of these values must evaluate to `[true]` for the choice to be selectable.
 
-    * [test 1][test 2] Both tests must pass to pick this option.
+        * [test 1][test 2] Both tests must pass to pick this option.
 
 The spans of choices are evaluated when the choice is displayed.
 This includes any formatting or commands inside the span.
 
-    * This WAIT command will be executed immediately =<>
+        * This WAIT command will be executed immediately =<>
 
-The verses in-between choice verses are only executed if the choice is selected.
+The verses in-between choice verses of the same level are only executed if the choice is selected.
 You can use this to display choice-specific text, cause redirection, or perform other advanced functions.
 
-    * This choice displays text.
-      Here is some text.
-    * This choice executes a GOTO command.
-      =>> GOTO THIS MOMENT
-    * This choice sets a variable.
-      ~ variable = oh yeah
-    * This choice changes attributes.
-      (-old attribute +new attribute)
+        * This choice displays text.
+          Here is some text.
+        * This choice executes a GOTO command.
+          =>> GOTO THIS MOMENT
+        * This choice sets a variable.
+          ~ variable = oh yeah
+        * This choice changes attributes.
+               (-old attribute +new attribute)
 
 ####  Operation
 
@@ -341,25 +354,54 @@ It begins with a `~` character and is followed by an expression.
 ####  Continuation verse
 
 A __*continuation verse*__ is a verse that is intended to continue uninterrupted from the preceding verse.
-It begins with a `<` character.
+It begins with a `<` character and is followed by a span.
 
     < This is a continuation verse.
+
+If the first verse which is output by a block is a continuation verse, then it (and any other remaining verses in the block) are treated as though they were a part of the preceding block.
+
+                @CHARACTER
+        Here is some dialogue.
+
+        <  %%  It's okay for the continuation verse to be empty.
+        This is still dialogue even though it appears in the next block.
+        (+and this parenthetical +sets character attributes +not setting ones)
+
+This is particularly handy when combined with moments and cycle blocks; for example, the following code can be used to cycle through character dialogue:
+
+                @CHARACTER
+        I need to tell you something.
+        => I REALLY LIKE YOU
+
+    .I REALLY LIKE YOU
+
+        :{
+            < I really
+            < really
+            < really
+            < really
+            < really
+            < really like you.
+        }
+
+Because only one of them will be processed at a time, each verse in the cycle block needs to be a continuation verse.
 
 Continuation verses are distinguished from continuation *lines* (which begin with a `;`) in that continuation verses are verses in their own right.
 
 ####  Plain verse
 
 A __*plain verse*__ is an unadorned verse which does not fit into any of the categories above.
+It consists solely of a span.
 
-    This is a line of plain verse.
+        This is a line of plain verse.
 
-Plain verses may optionally be preceded by an `_`, which will be ignored.
+As with all spans, the span content of plain verses may optionally be preceded by an `_`, which will be ignored.
 This is useful in instances where the verse would otherwise be interpreted as a different type.
 You can use two `_` characters if you need one to be rendered.
 
-    _...I didn't even know what to think.
-    __emily, that was her username, with a single initial underscore.
-    _(What kind of a username was that?)
+        _...I didn't even know what to think.
+        __emily, that was her username, with a single initial underscore.
+        _(What kind of a username was that?)
 
 ###  Block types:
 
@@ -369,8 +411,8 @@ A __*operation block*__ groups together a number of operations into a single blo
 The first and last verse of this block must consist of three `~` characters, optionally separated by whitespace.
 
     ~~~
-    var = 1
-    second var = 2
+        var = 1
+        second var = 2
     ~~~
 
 ####  Moment blocks
@@ -379,6 +421,7 @@ A __*moment block*__ is a block which contains a single moment verse, optionally
 If a setting verse is not provided, the setting is not changed.
 
     .SCENE ONE: MY FAVOURITE COLOUR
+    > A Field Of Roses
 
 ####  Setting blocks
 
@@ -393,8 +436,8 @@ A __*description block*__ is a block containing plain, parenthetical, continuati
 Parenthetical verses in this block affect the current setting.
 This block should be used for background narration or setting description.
 
-    The morning was cool and refreshing.
-    I was a little tired.
+        The morning was cool and refreshing.
+        I was a little tired.
 
 ####  Dialogue blocks
 
@@ -402,11 +445,11 @@ A __*dialogue block*__ consists of a character verse, optionally followed by any
 Parenthetical verses in this block affect the current character.
 It is used to represent dialogue.
 
-            @ALICE (questioning)
-    So you really think that they're coming?
-                               (=0 +worried)
-    What if they don't like my dress?
-                                        (=^)
+                @ALICE (questioning)
+        So you really think that they're coming?
+                                   (=0 +worried)
+        What if they don't like my dress?
+                                            (=^)
 
 ####  Cycle blocks
 
@@ -420,6 +463,8 @@ The first verse in a cycle block must consist of one of the following character 
 |     `^{`     | ONLY-ONCE | Each time the block is reached, the next verse is displayed. When all of the verses have been cycled through, nothing is displayed. |
 |     `${`     |  SHUFFLE  | Each time the block is reached, a random verse is displayed. |
 
+The last verse in a cycle block must consist of a solitary `}`.
+
 ###  Formatting:
 
 The content of spans can optionally contain special formatting.
@@ -429,13 +474,13 @@ The following options are available:
 
 You can access the value of a variable by using `` ` `` characters.
 
-    I had seen this before `MOMENT` times.
+        I had seen this before `MOMENT` times.
 
 ####  Text formatting
 
 Custom text formatting can be applied using the following syntax:
 
-    \fmt|text content/
+        \fmt|text content/
 
 ####  Character escaping
 
@@ -443,45 +488,45 @@ Newlines can be represented in span content using the character sequence `\n`.
 Spaces can be represented using the character sequence `\ ` (a backslash followed by a space); such spaces will not be collapsed.
 
 In addition, the following characters can be escaped by preceding them with a `\` character.
-Characters escaped in this manner cannot be used to start commands.
+Characters escaped in this manner cannot be used for formatting or to start commands.
 
-    \|/=#%()
+    \|/=#%()`:
 
 All other `\` characters are rendered literally.
 
 When escaping comments, the *second* character of the comment delimeter should be escaped; for example, these comments are correctly escaped:
 
-    This is an example %\% of a correctly escaped comment
-    as is %\( this %)
+        This is an example %\% of a correctly escaped comment
+        as is %\( this %)
 
 These comments, however, are *not* escaped:
 
-    This text has a comment \%% which will be removed by the lexer
-    As does this text \%( unfortunately %)
+        This text has a comment \%% which will be removed by the lexer
+        As does this text \%( unfortunately %)
 
 ####  Emoticons
 
 Words which begin with a `:` are processed as __*emoticons*__, which can be used to concisely change character attributes or add additional effects.
 Here, the `:)` emoticon might be used to add the `smiling` character attribute:
 
-    I really like that idea! :) However, maybe we should consider…
+        I really like that idea! :) However, maybe we should consider…
 
 The meaning of emoticons are left to the engine to process.
 For example, the following code uses the `:add_apple:` emoticon to add an apple to the user's inventory.
 
-    I picked up the apple and put it in my bag. :add_apple:
+        I picked up the apple and put it in my bag. :add_apple:
 
 Emoticons are processed when the text is rendered, so any emoticons placed in image options will be activated whenever the option text is displayed.
 The following code is broken because it will add the apple to the user's inventory regardless of whether the option is selected or not:
 
-    * Pick up the apple. :add_apple:
-    * Leave the apple behind.
+        * Pick up the apple. :add_apple:
+        * Leave the apple behind.
 
 Instead, the emoticon should be placed on a separate verse:
 
-    * Pick up the apple.
-      :add_apple:
-    * Leave the apple behind.
+        * Pick up the apple.
+          :add_apple:
+        * Leave the apple behind.
 
 Emoticons cannot be passed arguments.
 If you need to pass arguments, you should use a `=>` command instead.
