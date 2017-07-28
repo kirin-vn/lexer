@@ -75,7 +75,7 @@ Each KiriScript page is broken up into a number of __*blocks*__, each of which i
 The rules for dividing the page into blocks is as follows:
 
  -  A block is open at the start of the file.
- -  The old block is closed and a new block is opened for every blank line that is not a part of a note or comment.
+ -  The old block is closed and a new block is opened for every blank line that is not part of a comment.
  -  At the end of the file, the last block is closed.
  -  Empty blocks are discarded.
 
@@ -88,7 +88,7 @@ For example:
     This is a verse
     ;   which spans multiple lines in the source.
 
-Upon processing, the intervening whitespace and `;` characters are replaced with a single space.
+Upon lexing, the intervening whitespace and `;` characters are replaced with a single space.
 
 ####  Spans
 
@@ -180,16 +180,16 @@ Strings may optionally be preceded by an `_` character, which is ignored.
 
 ####  Lists
 
-A list is a sequence of numbers, lists, or identifiers, placed inside of curly braces and separated by `|` characters.
+A list is a sequence of numbers, lists, booleans, or identifiers, placed inside of curly braces and separated by `|` characters.
 
-    {some variable | another variable | +1000 | true }
+    { some variable | another variable | +1000 | [true] }
     { this list | { contains another list | inside } }
 
 Strings cannot be included in lists verbatim; they must first be assigned to a variable.
 
 ###  Commands
 
-A __*command*__ is a span of text which terminates a span to add an additional effect.
+A __*command*__ can optionally terminate a span to add an additional effect.
 It is okay for a span to consist of only a command.
 
 ####  Tags
@@ -199,10 +199,14 @@ Tags are delimited by `#` characters.
 
     This is some text  # TODO: Actually write something here.
 
+How you use tags is up to you; for example, the following code uses them to add a special effect.
+
+    This text should shake  #  shaky-text
+
 ####  Directions
 
 __*Directions*__ are used to control the script flow.
-They must begin with of the following character sequences:
+They must begin with one of the following character sequences:
 
 | Sequence | Name | Description |
 | :------: | :--: | ----------- |
@@ -226,7 +230,7 @@ For example, the following code passes `variable` to the engine, and waits for a
 
 ####  Moments
 
-A __*moment*__ is a type of verse which must begin with a period.
+A __*moment*__ is a type of verse which must begin with a `.`.
 Moments identify a particular location in the script, and can be used to break a page up into sections.
 The contents of the verse (sans–initial period) provide the moment's identifier, which must be unique within a page.
 
@@ -234,7 +238,7 @@ The contents of the verse (sans–initial period) provide the moment's identifie
 
 Moment identifiers may be used with directions for navigation.
 Elsewhere in the script, the moment identifier returns the number of times the moment has been viewed.
-Conveniently, this means `[A SIMPLE MOMENT]` evaluates to `[true]` for moments which have been viewed at least once, and `[false]` for moments which have not.
+Conveniently, this means `[MOMENT]` evaluates to `[true]` for moments which have been viewed at least once, and `[false]` for moments which have not.
 
 Moments can take arguments and be used like functions.
 These can be specified with a parenthetical list of identifiers, separated by commas.
@@ -353,29 +357,25 @@ It begins with a `~` character and is followed by an expression.
 
 ####  Continuation verse
 
-A __*continuation verse*__ is a verse that is intended to continue uninterrupted from the preceding verse.
+A __*continuation verse*__ is a verse that is intended to continue uninterrupted from the preceding (outputted) verse.
 It begins with a `<` character and is followed by a span.
 
-    < This is a continuation verse.
+        < This is a continuation verse.
 
-If the first verse which is output by a block is a continuation verse, then it (and any other remaining verses in the block) are treated as though they were a part of the preceding block.
-
-                @CHARACTER
-        Here is some dialogue.
-
-        <  %%  It's okay for the continuation verse to be empty.
-        This is still dialogue even though it appears in the next block.
-        (+and this parenthetical +sets character attributes +not setting ones)
-
-This is particularly handy when combined with moments and cycle blocks; for example, the following code can be used to cycle through character dialogue:
+Continuation verses are particularly handy when combined with moments and cycle blocks; for example, the following code can be used to cycle through character dialogue:
 
                 @CHARACTER
         I need to tell you something.
+
+    .LOOP
+                @CHARACTER
         => I REALLY LIKE YOU
+
+        =>> LOOP
 
     .I REALLY LIKE YOU
 
-        :{
+        &{
             < I really
             < really
             < really
@@ -385,8 +385,6 @@ This is particularly handy when combined with moments and cycle blocks; for exam
         }
 
 Because only one of them will be processed at a time, each verse in the cycle block needs to be a continuation verse.
-
-Continuation verses are distinguished from continuation *lines* (which begin with a `;`) in that continuation verses are verses in their own right.
 
 ####  Plain verse
 
@@ -403,6 +401,11 @@ You can use two `_` characters if you need one to be rendered.
         __emily, that was her username, with a single initial underscore.
         _(What kind of a username was that?)
 
+####  Body verse and outputted verse
+
+The plain, parenthetical, continuation, choice, and operation verses are collectively known as __*body verses*__.
+Plain, choice, and continuation verses are __*outputted verses*__ if they evaluate to a non-blank value when processed.
+
 ###  Block types:
 
 ####  Operation blocks
@@ -411,8 +414,8 @@ A __*operation block*__ groups together a number of operations into a single blo
 The first and last verse of this block must consist of three `~` characters, optionally separated by whitespace.
 
     ~~~
-        var = 1
-        second var = 2
+        var = +1
+        second var = two (2)
     ~~~
 
 ####  Moment blocks
@@ -428,28 +431,59 @@ If a setting verse is not provided, the setting is not changed.
 A __*setting block*__ sets the current setting.
 It consists of a single setting verse.
 
-    > FOREST PATH (sunny, autumn)
+    > Forest Path (sunny, autumn)
 
 ####  Description blocks
 
-A __*description block*__ is a block containing plain, parenthetical, continuation, choice, or operation verses.
+A __*description block*__ consists of either:
+
+ -  A body verse which is not a continuation verse, optionally followed by any number of body verses.
+ -  A continuation verse, optionally followed by any number of body verses, if the last outputted verse was not part of a dialogue block.
+
 Parenthetical verses in this block affect the current setting.
 This block should be used for background narration or setting description.
 
         The morning was cool and refreshing.
+                                    (+windy)
         I was a little tired.
 
 ####  Dialogue blocks
 
-A __*dialogue block*__ consists of a character verse, optionally followed by any number of plain, parenthetical, continuation, choice, or operation verses.
+A __*dialogue block*__ consists of either:
+
+ -  A character verse, optionally followed by any number of body verses.
+ -  A continuation verse, optionally followed by any number of body verses, if the last outputted verse was part of a dialogue block.
+
 Parenthetical verses in this block affect the current character.
 It is used to represent dialogue.
 
                 @ALICE (questioning)
         So you really think that they're coming?
-                                   (=0 +worried)
+                                   (:0 +worried)
         What if they don't like my dress?
-                                            (=^)
+                                            (:^)
+
+A block can function as both a description block and a dialogue block, depending on how it is used.
+
+    .DESCRIPTION
+
+        This is some description.
+        => DESCRIPTION AND DIALOGUE
+
+    .DIALOGUE
+
+                @CHARACTER
+        Now, I'm speaking dialogue!
+        => DESCRIPTION AND DIALOGUE
+
+        =<<
+
+    .DESCRIPTION AND DIALOGUE
+
+        <
+        The continuation verse at the beginning of this block
+        means that it can be used for EITHER description OR dialogue!
+        Fancy that!
 
 ####  Cycle blocks
 
@@ -464,6 +498,13 @@ The first verse in a cycle block must consist of one of the following character 
 |     `${`     |  SHUFFLE  | Each time the block is reached, a random verse is displayed. |
 
 The last verse in a cycle block must consist of a solitary `}`.
+
+        I flipped the coin. I got
+
+        ${
+            < heads. => HEADS
+            < tails. => TAILS
+        }
 
 ###  Formatting:
 
@@ -481,28 +522,40 @@ You can access the value of a variable by using `` ` `` characters.
 Custom text formatting can be applied using the following syntax:
 
         \fmt|text content/
+        \fmt1|this can be \fmt2|nested//
+
+`fmt` must match the syntax for an identifier (ie, it can't contain special characters).
 
 ####  Character escaping
 
-Newlines can be represented in span content using the character sequence `\n`.
-Spaces can be represented using the character sequence `\ ` (a backslash followed by a space); such spaces will not be collapsed.
+Newlines can be represented in span content using the character sequence `_n`.
+Spaces can be represented using the character sequence <code>_ </code> (an underscore followed by a space); such spaces will not be collapsed.
 
-In addition, the following characters can be escaped by preceding them with a `\` character.
+In addition, the following characters can be escaped by preceding them with a `_` character.
 Characters escaped in this manner cannot be used for formatting or to start commands.
 
-    \|/=#%()`:
+    _\|/<>=#%()`:
 
-All other `\` characters are rendered literally.
+All other `_` characters are rendered literally.
 
 When escaping comments, the *second* character of the comment delimeter should be escaped; for example, these comments are correctly escaped:
 
-        This is an example %\% of a correctly escaped comment
-        as is %\( this %)
+        This is an example %_% of a correctly escaped comment
+        as is %_( this %)
 
 These comments, however, are *not* escaped:
 
-        This text has a comment \%% which will be removed by the lexer
-        As does this text \%( unfortunately %)
+        This text has a comment _%% which will be removed by the lexer
+        As does this text _%( unfortunately %)
+
+When escaping content at the beginning of a span's contents, recall that the first underscore is discarded.
+Consequently, *two* underscores are required:
+
+        __n This span begins with a newline.
+
+In rare cases (when escaping an underscore), *three* underscores may be needed:
+
+        ___\fmt|This is formatted text following a single underscore./
 
 ####  Emoticons
 
@@ -512,36 +565,37 @@ Here, the `:)` emoticon might be used to add the `smiling` character attribute:
         I really like that idea! :) However, maybe we should consider…
 
 The meaning of emoticons are left to the engine to process.
-For example, the following code uses the `:add_apple:` emoticon to add an apple to the user's inventory.
+For example, the following code uses the `:add-apple:` emoticon to add an apple to the user's inventory.
 
-        I picked up the apple and put it in my bag. :add_apple:
+        I picked up the apple and put it in my bag. :add-apple:
 
-Emoticons are processed when the text is rendered, so any emoticons placed in image options will be activated whenever the option text is displayed.
-The following code is broken because it will add the apple to the user's inventory regardless of whether the option is selected or not:
+Emoticons are processed when the text is rendered, so any emoticons placed in choices will be activated whenever the choice text is displayed.
+The following code is broken because it will add the apple to the user's inventory regardless of whether the choice to pick up the apple is selected or not:
 
-        * Pick up the apple. :add_apple:
+        * Pick up the apple. :add-apple:
         * Leave the apple behind.
 
 Instead, the emoticon should be placed on a separate verse:
 
         * Pick up the apple.
-          :add_apple:
+          :add-apple:
         * Leave the apple behind.
 
 Emoticons cannot be passed arguments.
-If you need to pass arguments, you should use a `=>` command instead.
+If you need to pass arguments, you should use a `=>` direction instead.
 The following short script shows this in action:
 
-    =>> YOU ARE OFFERED AN APPLE
-
-    ~~~  %%  Basic variable definitions
+    %%  Basic variable definitions:
+    ~~~
         add to inventory = INV_ADD
         apple = apple
     ~~~
 
+    =>> YOU ARE OFFERED AN APPLE
+
     .ADD ITEM (type)
 
-        =<> {add to inventory | apple}
+        =<> {add to inventory | type}
 
     .YOU ARE OFFERED AN APPLE
 
