@@ -1,0 +1,17 @@
+%%  SAMPLE KIRISCRIPT FILE  %%
+
+%(
+    This file is a sample KiriScript file to demonstrate some finer points of the syntax.
+)%
+
+%%%  Initial function definitions  %%%
+
+=>> START
+
+
+.START
+> Summer Street (day)
+
+`ALICE` walks down the street.
+
+@ALICE (whistling)
